@@ -29,7 +29,24 @@ class WikiWorker extends Actor with Downloader with WikiJsonParser {
   override def postStop(): Unit = cluster.unsubscribe(self)
 
   override def receive = {
-    case wp: WikiPage => ??? // call wiki page's api to extract links and send them back one by one
+    case wp: WikiPage =>
+      val who = sender()
+
+      val deeper = links(content(wp.pageName))
+      deeper.recover { case e => who ! JobFailed(e.getMessage, wp) }
+
+      try {
+        val nextLinks: List[String] = Await.result(deeper, 1 seconds)
+        nextLinks.foreach { l =>
+          val wp = WikiPage(l)
+          println("sending back %s".format(wp))
+          who ! wp
+          Thread.sleep(500)
+        }
+      } catch {
+        case _:TimeoutException => who ! JobFailed("timeout", wp)
+      }
+
 
     case state: CurrentClusterState =>
       state.members.filter(_.status == MemberStatus.Up) foreach register
