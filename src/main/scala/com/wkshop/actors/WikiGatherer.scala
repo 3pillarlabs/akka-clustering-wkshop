@@ -29,11 +29,20 @@ class WikiGatherer extends Actor {
     }
 
   def receive = {
-    case job: WikiPage => ???
-      // if there are no workers, retry in 2 seconds
-      // if there are some, select one and send it the job
+    case job: WikiPage =>
 
+      selectWorker match {
+        case None =>
+          println("Service unavailable, try again in 2 sec", job)
+          context.system.scheduler.scheduleOnce(2 seconds) {
+            requeueActor ! job
+          }
 
+        case Some(w) =>
+          jobCounter += 1
+          println("diving into %s from %s".format(job, sender()))
+          w ! job
+      }
 
     case WikiWorkerRegistration if !workers.contains(sender()) =>
       println("registering wiki worker %s".format(sender()))
