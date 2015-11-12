@@ -6,7 +6,9 @@ class PongActor extends Actor with ActorLogging {
   import PongActor._
 
   def receive = {
-    ??? // send back a Pong upon receiving a Ping
+  	case PingActor.PingMessage(text) =>
+  	  log.info("In PongActor - received message: {}", text)
+  	  sender() ! PongMessage("pong")
   }	
 }
 
